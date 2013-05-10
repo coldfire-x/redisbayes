@@ -1,34 +1,53 @@
-package main
+package redisbayes
 
 import (
 	//"math"
-    "fmt"
+    "regexp"
     "log"
     "strings"
     "github.com/kylelemons/go-gypsy/yaml"
     //"github.com/garyburd/redigo/redis"
 )
 
-type Text string
-type Word string
+var english_ignore_words_map = make(map[string]int)
 
 // replace \_.,<>:;~+|\[\]?`"!@#$%^&*()\s chars with whitespace
 // re.sub(r'[\_.,<>:;~+|\[\]?`"!@#$%^&*()\s]', ' ' 
-func Tidy(s Text) Text {
-        return ""
+func Tidy(s string) string {
+        reg, err := regexp.Compile("[\\_.,:;~+|\\[\\]?`\"!@#$%^&*()\\s]+")
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        text_in_lower := strings.ToLower(s)
+        safe := reg.ReplaceAllLiteralString(text_in_lower, " ")
+
+        return safe
 }
 
 // tidy the input text, ignore those text composed with less than 2 chars 
-func English_tokenizer(s Text) Text {
-        return ""
+func English_tokenizer(s string) []string {
+        words := strings.Fields(Tidy(s))
+
+        for index, word := range words {
+                strings.TrimSpace(word)
+                _, omit := english_ignore_words_map[word]
+                if omit || len(word)<2 {
+                        words = words[:index+copy(words[index:], words[index+1:])]
+                }
+        }
+
+        return words
 }
 
 // compute word occurances
-func Occurances(w Word) map[Word]uint {
+func Occurances(w string) map[string]uint {
         return nil
 }
 
-func main() {
+// init function, load the configs
+// fill english_ignore_words_map
+func init() {
     // load config file
     cfg_filename := "config.yaml"
     config, err := yaml.ReadFile(cfg_filename)
@@ -44,9 +63,8 @@ func main() {
 
     // get each separated words
     english_ignore_words_list := strings.Fields(english_ignore)
-    for _, value := range english_ignore_words_list {
-        log.Println(value)
+    for _, word := range english_ignore_words_list {
+            word = strings.TrimSpace(word)
+            english_ignore_words_map[word] = 1
     }
-
-    fmt.Println("ok")
 }
