@@ -23,3 +23,18 @@ func TestEnglish_tokenizer(t *testing.T) {
 		}
 	}
 }
+
+func TestOccurances(t *testing.T) {
+	words := []string{"fjalsdfj", "23", "fjalsdfj", "23", "ok"}
+	res := Occurances(words)
+	expected_res := map[string]uint{
+		"23":       2,
+		"fjalsdfj": 2,
+		"ok":       1}
+
+	for k, v := range expected_res {
+		if res[k] != v {
+			t.Errorf("Occurances failed: %s", expected_res)
+		}
+	}
+}

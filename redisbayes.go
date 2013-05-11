@@ -41,8 +41,17 @@ func English_tokenizer(s string) []string {
 }
 
 // compute word occurances
-func Occurances(w string) map[string]uint {
-	return nil
+func Occurances(words []string) map[string]uint {
+	counts := make(map[string]uint)
+	for _, word := range words {
+		if _, ok := counts[word]; ok {
+			counts[word] += 1
+		} else {
+			counts[word] = 1
+		}
+	}
+
+	return counts
 }
 
 // init function, load the configs
