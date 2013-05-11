@@ -1,7 +1,6 @@
 package redisbayes
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -14,12 +13,13 @@ func TestTidy(t *testing.T) {
 }
 
 func TestEnglish_tokenizer(t *testing.T) {
-	test_string := "fjalsdfj $()*#()#*@)&(*&(*^@#*&)!fajs`ldkfj 23"
-	expected_res := []string{"fjalsdfj", "fsjs", "ldkfj", "23"}
+	test_string := "fjalsdfj $(.;)*#()#*@)&(*&(*^@#*&)!fajs`ldkfj 23"
+	expected_res := []string{"fjalsdfj", "fajs", "ldkfj", "23"}
 
 	words := English_tokenizer(test_string)
-
-	if words != expected_res {
-		t.Errorf("tokenizer failed: %s", expected_res)
+	for i, word := range expected_res {
+		if words[i] != word {
+			t.Errorf("tokenizer failed: %s", expected_res)
+		}
 	}
 }
