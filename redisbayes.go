@@ -2,17 +2,19 @@ package redisbayes
 
 import (
 	"fmt"
+	"github.com/garyburd/redigo/redis"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"math"
 	"regexp"
 	"strings"
-	"github.com/garyburd/redigo/redis"
-	"github.com/kylelemons/go-gypsy/yaml"
 )
 
 var (
 	english_ignore_words_map = make(map[string]int)
 	redis_conn               redis.Conn
+	redis_prefix             = "bayes:"
+	correction               = 0.1
 )
 
 // replace \_.,<>:;~+|\[\]?`"!@#$%^&*()\s chars with whitespace
@@ -56,6 +58,118 @@ func Occurances(words []string) map[string]uint {
 	}
 
 	return counts
+}
+
+func Flush() {
+	reply, err := redis_conn.Do("SMEMBERS", redis_prefix+"categories")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	for _, key := range reply.([]string) {
+		redis_conn.Do("DELETE", key)
+	}
+
+	redis_conn.Do("DELETE", redis_prefix+"categories")
+}
+
+func Train(categories, text string) {
+	redis_conn.Do("SADD", redis_prefix+"categories", categories)
+
+	token_occur := Occurances(English_tokenizer(text))
+	for word, count := range token_occur {
+		redis_conn.Do("HINCRBY", redis_prefix+categories, word, count)
+	}
+}
+
+func Untrain(categories, text string) {
+	token_occur := Occurances(English_tokenizer(text))
+	for word, count := range token_occur {
+		cur, err := redis_conn.Do("HGET", redis_prefix+categories, word)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		if cur := cur.(uint); cur != 0 {
+			inew := cur - count
+			if inew > 0 {
+				redis_conn.Do("HSET", redis_prefix+categories, word, inew)
+			} else {
+				redis_conn.Do("HDEL", redis_prefix+categories, word)
+			}
+		}
+	}
+
+	if Tally(categories) == 0 {
+		redis_conn.Do("DELETE", redis_prefix+categories)
+		redis_conn.Do("SREM", redis_prefix+"categories", categories)
+	}
+}
+
+func Classify(text string) string {
+	scores := Score(text)
+	max := 0.0
+	key := ""
+	if scores != nil {
+		for k, v := range scores {
+			if v >= max {
+				max = v
+				key = k
+			}
+		}
+
+		return key
+	}
+
+	return ""
+}
+
+func Score(text string) map[string]float64 {
+	token_occur := Occurances(English_tokenizer(text))
+	res := make(map[string]float64)
+
+	reply, err := redis_conn.Do("SMEMBERS", redis_prefix+"categories")
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
+	for _, category := range reply.([]string) {
+		tally := Tally(category)
+		if tally == 0 {
+			continue
+		}
+
+		res[category] = 0.0
+		for word, _ := range token_occur {
+			score, err := redis_conn.Do("HGET", redis_prefix+category, word)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+
+			if score.(float64) == 0.0 {
+				score = correction
+			}
+			res[category] += math.Log(score.(float64) / float64(tally))
+		}
+	}
+	return res
+}
+
+func Tally(category string) (sum uint) {
+	vals, err := redis_conn.Do("HVALS", redis_prefix+category)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	for _, val := range vals.([]uint) {
+		sum += val
+	}
+	return sum
 }
 
 // init function, load the configs
