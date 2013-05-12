@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -34,16 +35,18 @@ func Tidy(s string) string {
 // tidy the input text, ignore those text composed with less than 2 chars 
 func English_tokenizer(s string) []string {
 	words := strings.Fields(Tidy(s))
+	res := make([]string, 1)
 
-	for index, word := range words {
+	for _, word := range words {
 		strings.TrimSpace(word)
 		_, omit := english_ignore_words_map[word]
 		if omit || len(word) < 2 {
-			words = words[:index+copy(words[index:], words[index+1:])]
+			continue
 		}
+		res = append(res, word)
 	}
 
-	return words
+	return res
 }
 
 // compute word occurances
@@ -67,11 +70,11 @@ func Flush() {
 		return
 	}
 
-	for _, key := range reply.([]string) {
-		redis_conn.Do("DELETE", key)
+	for _, key := range reply.([]interface{}) {
+		redis_conn.Do("DEL", redis_prefix+string(key.([]byte)))
 	}
 
-	redis_conn.Do("DELETE", redis_prefix+"categories")
+	redis_conn.Do("DEL", redis_prefix+"categories")
 }
 
 func Train(categories, text string) {
@@ -103,18 +106,19 @@ func Untrain(categories, text string) {
 	}
 
 	if Tally(categories) == 0 {
-		redis_conn.Do("DELETE", redis_prefix+categories)
+		redis_conn.Do("DEL", redis_prefix+categories)
 		redis_conn.Do("SREM", redis_prefix+"categories", categories)
 	}
 }
 
 func Classify(text string) string {
 	scores := Score(text)
-	max := 0.0
 	key := ""
+    max := 0.0
+
 	if scores != nil {
 		for k, v := range scores {
-			if v >= max {
+			if v <= max {
 				max = v
 				key = k
 			}
@@ -123,7 +127,7 @@ func Classify(text string) string {
 		return key
 	}
 
-	return ""
+	return "I dont know"
 }
 
 func Score(text string) map[string]float64 {
@@ -136,7 +140,8 @@ func Score(text string) map[string]float64 {
 		return nil
 	}
 
-	for _, category := range reply.([]string) {
+	for _, category := range reply.([]interface{}) {
+		category := string(category.([]byte))
 		tally := Tally(category)
 		if tally == 0 {
 			continue
@@ -150,25 +155,43 @@ func Score(text string) map[string]float64 {
 				return nil
 			}
 
-			if score.(float64) == 0.0 {
-				score = correction
+			if score == nil {
+				continue
 			}
-			res[category] += math.Log(score.(float64) / float64(tally))
+
+			iVal, err := strconv.ParseFloat(string(score.([]byte)), 64)
+			if err != nil {
+				log.Println(err)
+				return nil
+			}
+
+			if iVal == 0.0 {
+				iVal = correction
+			}
+			res[category] += math.Log(iVal / float64(tally))
 		}
 	}
+
 	return res
 }
 
-func Tally(category string) (sum uint) {
+func Tally(category string) (sum uint64) {
 	vals, err := redis_conn.Do("HVALS", redis_prefix+category)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	for _, val := range vals.([]uint) {
-		sum += val
+	for _, val := range vals.([]interface{}) {
+		iVal, err := strconv.ParseUint(string(val.([]byte)), 10, 0)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		sum += iVal
 	}
+
 	return sum
 }
 
@@ -204,7 +227,7 @@ func init() {
 	redis_config_m := redis_config.(yaml.Map)
 	host, port := redis_config_m["host"], redis_config_m["port"]
 	redis_conn, err = redis.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
-	defer redis_conn.Close()
+	//defer redis_conn.Close()
 	if err != nil {
 		log.Fatalf("Can not connect to Redis Server: %s", err)
 	}
