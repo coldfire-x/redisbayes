@@ -1,15 +1,19 @@
 package redisbayes
 
 import (
-	//"math"
-	"github.com/kylelemons/go-gypsy/yaml"
+	"fmt"
 	"log"
+	"math"
 	"regexp"
 	"strings"
-	//"github.com/garyburd/redigo/redis"
+	"github.com/garyburd/redigo/redis"
+	"github.com/kylelemons/go-gypsy/yaml"
 )
 
-var english_ignore_words_map = make(map[string]int)
+var (
+	english_ignore_words_map = make(map[string]int)
+	redis_conn               redis.Conn
+)
 
 // replace \_.,<>:;~+|\[\]?`"!@#$%^&*()\s chars with whitespace
 // re.sub(r'[\_.,<>:;~+|\[\]?`"!@#$%^&*()\s]', ' ' 
@@ -75,5 +79,19 @@ func init() {
 	for _, word := range english_ignore_words_list {
 		word = strings.TrimSpace(word)
 		english_ignore_words_map[word] = 1
+	}
+
+	// get redis connection info
+	redis_config, err := yaml.Child(config.Root, "redis_server")
+	if err != nil {
+		log.Fatalf("redis config parse error: %s\n", err)
+	}
+
+	redis_config_m := redis_config.(yaml.Map)
+	host, port := redis_config_m["host"], redis_config_m["port"]
+	redis_conn, err = redis.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
+	defer redis_conn.Close()
+	if err != nil {
+		log.Fatalf("Can not connect to Redis Server: %s", err)
 	}
 }

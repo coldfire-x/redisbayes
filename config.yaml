@@ -1,6 +1,6 @@
-redis_server:
-  - host: 127.0.0.1
-  - port: 6379
+redis_server:  
+  host: 127.0.0.1
+  port: 6379
 
 english_ignore: |
   a able about above abroad according accordingly across actually adj after
