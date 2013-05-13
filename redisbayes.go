@@ -91,14 +91,15 @@ func Train(categories, text string) {
 func Untrain(categories, text string) {
 	token_occur := Occurances(English_tokenizer(text))
 	for word, count := range token_occur {
-		cur, err := redis_conn.Do("HGET", redis_prefix+categories, word)
+		reply, err := redis_conn.Do("HGET", redis_prefix+categories, word)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		if cur := cur.(uint); cur != 0 {
-			inew := cur - count
+        cur, err := strconv.ParseUint(string(reply.([]byte)), 10, 0)
+		if cur != 0 {
+			inew := cur - uint64(count)
 			if inew > 0 {
 				redis_conn.Do("HSET", redis_prefix+categories, word, inew)
 			} else {

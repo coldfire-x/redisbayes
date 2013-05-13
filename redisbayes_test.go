@@ -67,6 +67,17 @@ func TestClassify(t *testing.T) {
 	}
 }
 
+func TestUntrain(t *testing.T) {
+    Flush()
+	Train("good", "sunshine drugs love sex lobster sloth")
+    Untrain("good", "sunshine drugs love sex lobster sloth")
+
+	exists, err := redis.Bool(redis_conn.Do("EXISTS", redis_prefix+"good"))
+	if exists || err != nil {
+		t.Errorf("Untrain failed %s, %s", exists, err)
+	}
+}
+
 func init() {
 	Flush()
 }
