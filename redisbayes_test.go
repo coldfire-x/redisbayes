@@ -14,12 +14,13 @@ func TestTidy(t *testing.T) {
 
 func TestEnglish_tokenizer(t *testing.T) {
 	test_string := "fjalsdfj $(.;)*#()#*@)&(*&(*^@#*&)!fajs`ldkfj 23"
-	expected_res := []string{"fjalsdfj", "fajs", "ldkfj", "23"}
+	expected_res := []string{"fjalsdfj", "fajs", "ldkfj"}
 
 	words := English_tokenizer(test_string)
 	for i, word := range expected_res {
 		if words[i] != word {
-			t.Errorf("tokenizer failed: %s", expected_res)
+			t.Errorf("tokenizer failed, expected: %s", expected_res)
+			t.Errorf("tokenizer failed, actually: %s, len:%d", words, len(words))
 		}
 	}
 }

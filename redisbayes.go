@@ -35,12 +35,14 @@ func Tidy(s string) string {
 // tidy the input text, ignore those text composed with less than 2 chars 
 func English_tokenizer(s string) []string {
 	words := strings.Fields(Tidy(s))
-	res := make([]string, 1)
+    // this slice's length should be initialized to 0
+    // otherwise, the first element will be the whitespace(empty string)
+	res := make([]string, 0)
 
 	for _, word := range words {
 		strings.TrimSpace(word)
 		_, omit := english_ignore_words_map[word]
-		if omit || len(word) < 2 {
+		if omit || len(word) <= 2 {
 			continue
 		}
 		res = append(res, word)
