@@ -1,6 +1,7 @@
 package redisbayes
 
 import (
+	"github.com/garyburd/redigo/redis"
 	"testing"
 )
 
@@ -38,5 +39,30 @@ func TestOccurances(t *testing.T) {
 		if res[k] != v {
 			t.Errorf("Occurances failed: %s", expected_res)
 		}
+	}
+}
+
+func TestFlush(t *testing.T) {
+	Train("good", "sunshine drugs love sex lobster sloth")
+	Flush()
+
+	exists, err := redis.Bool(redis_conn.Do("EXISTS", redis_prefix+"good"))
+	if exists || err != nil {
+		t.Errorf("Flush failed")
+	}
+}
+
+func TestClassify(t *testing.T) {
+	Train("good", "sunshine drugs love sex lobster sloth")
+	Train("bad", "fear death horror government zombie god")
+
+	class := Classify("sloths are so cute i love them")
+	if class != "good" {
+		t.Errorf("Classify failed, should be good, result: %s", class)
+	}
+
+	class = Classify("i fear god and love the government")
+	if class != "bad" {
+		t.Errorf("Classify failed, should be bad, result: %s", class)
 	}
 }
