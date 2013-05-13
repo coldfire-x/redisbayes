@@ -66,3 +66,7 @@ func TestClassify(t *testing.T) {
 		t.Errorf("Classify failed, should be bad, result: %s", class)
 	}
 }
+
+func init() {
+	Flush()
+}
