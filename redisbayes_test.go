@@ -1,6 +1,7 @@
 package redisbayes
 
 import (
+	"fmt"
 	"github.com/garyburd/redigo/redis"
 	"testing"
 )
@@ -68,9 +69,9 @@ func TestClassify(t *testing.T) {
 }
 
 func TestUntrain(t *testing.T) {
-    Flush()
+	Flush()
 	Train("good", "sunshine drugs love sex lobster sloth")
-    Untrain("good", "sunshine drugs love sex lobster sloth")
+	Untrain("good", "sunshine drugs love sex lobster sloth")
 
 	exists, err := redis.Bool(redis_conn.Do("EXISTS", redis_prefix+"good"))
 	if exists || err != nil {
@@ -79,5 +80,9 @@ func TestUntrain(t *testing.T) {
 }
 
 func init() {
+	err := ConnectToRedis("localhost", "6379")
+	if err != nil {
+		fmt.Println("cannot connect to redis", err)
+	}
 	Flush()
 }
