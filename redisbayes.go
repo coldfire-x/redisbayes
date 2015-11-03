@@ -3,7 +3,6 @@ package redisbayes
 import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
-	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"math"
 	"regexp"
@@ -12,14 +11,13 @@ import (
 )
 
 var (
-	english_ignore_words_map = make(map[string]int)
-	redis_conn               redis.Conn
-	redis_prefix             = "bayes:"
-	correction               = 0.1
+	redis_conn   redis.Conn
+	redis_prefix = "bayes:"
+	correction   = 0.1
 )
 
 // replace \_.,<>:;~+|\[\]?`"!@#$%^&*()\s chars with whitespace
-// re.sub(r'[\_.,<>:;~+|\[\]?`"!@#$%^&*()\s]', ' ' 
+// re.sub(r'[\_.,<>:;~+|\[\]?`"!@#$%^&*()\s]', ' '
 func Tidy(s string) string {
 	reg, err := regexp.Compile("[\\_.,:;~+|\\[\\]?`\"!@#$%^&*()\\s]+")
 	if err != nil {
@@ -32,20 +30,15 @@ func Tidy(s string) string {
 	return safe
 }
 
-// tidy the input text, ignore those text composed with less than 2 chars 
+// tidy the input text, ignore those text composed with less than 2 chars
 func English_tokenizer(s string) []string {
 	words := strings.Fields(Tidy(s))
-    // this slice's length should be initialized to 0
-    // otherwise, the first element will be the whitespace(empty string)
+	// this slice's length should be initialized to 0
+	// otherwise, the first element will be the whitespace(empty string)
 	res := make([]string, 0)
 
 	for _, word := range words {
-		strings.TrimSpace(word)
-		_, omit := english_ignore_words_map[word]
-		if omit || len(word) <= 2 {
-			continue
-		}
-		res = append(res, word)
+		res = append(res, strings.TrimSpace(word))
 	}
 
 	return res
@@ -97,7 +90,7 @@ func Untrain(categories, text string) {
 			return
 		}
 
-        cur, err := strconv.ParseUint(string(reply.([]byte)), 10, 0)
+		cur, err := strconv.ParseUint(string(reply.([]byte)), 10, 0)
 		if cur != 0 {
 			inew := cur - uint64(count)
 			if inew > 0 {
@@ -117,7 +110,7 @@ func Untrain(categories, text string) {
 func Classify(text string) string {
 	scores := Score(text)
 	key := ""
-    max := 0.0
+	max := 0.0
 
 	if scores != nil {
 		for k, v := range scores {
@@ -197,41 +190,9 @@ func Tally(category string) (sum uint64) {
 
 	return sum
 }
-
-// init function, load the configs
-// fill english_ignore_words_map
-func init() {
-	// load config file
-	cfg_filename := "config.yaml"
-	config, err := yaml.ReadFile(cfg_filename)
-	if err != nil {
-		log.Fatalf("readfile(%s): %s", cfg_filename, err)
-	}
-
-	// get english ignore entire string
-	english_ignore, err := config.Get("english_ignore")
-	if err != nil {
-		log.Fatalf("%s parse error: %s\n", english_ignore, err)
-	}
-
-	// get each separated words
-	english_ignore_words_list := strings.Fields(english_ignore)
-	for _, word := range english_ignore_words_list {
-		word = strings.TrimSpace(word)
-		english_ignore_words_map[word] = 1
-	}
-
-	// get redis connection info
-	redis_config, err := yaml.Child(config.Root, "redis_server")
-	if err != nil {
-		log.Fatalf("redis config parse error: %s\n", err)
-	}
-
-	redis_config_m := redis_config.(yaml.Map)
-	host, port := redis_config_m["host"], redis_config_m["port"]
+func ConnectToRedis(host, port string) error {
+	var err error
 	redis_conn, err = redis.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
-	//defer redis_conn.Close()
-	if err != nil {
-		log.Fatalf("Can not connect to Redis Server: %s", err)
-	}
+
+	return err
 }
