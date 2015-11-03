@@ -16,7 +16,7 @@ text.
 Installation
 ============
 
-go get github.com/pengfei-xue/redisbayes
+go get github.com/bibliotech/redisbayes
 
 
 Basic Usage
@@ -28,7 +28,7 @@ Basic Usage
     
     import (
     	"fmt"
-    	"github.com/pengfei-xue/redisbayes"
+    	"github.com/bibliotech/redisbayes"
     )
     
     // you should add a config file config.yaml in your working dir
